@@ -1,0 +1,615 @@
+from __future__ import print_function
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
+from cartopy.geodesic import Geodesic
+import cartopy.io.shapereader as shpreader
+from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
+import csv
+import datetime as dt
+from datetime import datetime, timedelta
+from geopy import distance
+import h5py
+from ipywidgets import interact, widgets
+from math import radians, cos, sin, asin, sqrt, degrees, atan, log
+import matplotlib.cm as cm
+import matplotlib.colors as mcolors
+from matplotlib.colors import LogNorm
+import matplotlib.dates as md
+from matplotlib.dates import AutoDateLocator
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
+from matplotlib.ticker import Formatter, FormatStrFormatter, MaxNLocator
+from metpy.plots import USCOUNTIES
+import nexradaws
+conn = nexradaws.NexradAwsInterface()
+import numpy as np
+import numpy.ma as ma
+norm = np.linalg.norm
+import os
+import pandas as pd
+from pathlib import Path
+import pickle
+from PIL import Image
+import pyart
+import pymap3d as pm
+from pyxlma import coords
+from pyxlma.lmalib.flash.cluster import cluster_flashes
+import pyxlma.lmalib.flash.properties
+from pyxlma.lmalib.flash.properties import flash_stats, filter_flashes
+from pyxlma.lmalib.grid import  create_regular_grid, assign_regular_bins, events_to_grid
+from pyxlma.lmalib.io import read as lma_read
+from pyxlma.plot.interactive import InteractiveLMAPlot
+from pyxlma.plot.xlma_base_plot import FractionalSecondFormatter
+from pyxlma.plot.interactive import output as lma_plot_output
+from pyxlma.plot.xlma_base_plot import subplot_labels, inset_view, BlankPlot
+from pyxlma.plot.xlma_plot_feature import color_by_time, plot_points, setup_hist, plot_3d_grid, subset, plot_2d_network_points
+import pyxlma.plot.xlma_super_plot_feature
+import pyxlma.plot.xlma_super_base_plot
+import pyxlma.plot.radar as lmarad
+from pypalettes import load_cmap
+import pyproj as proj4
+import requests
+import shapely.geometry as sgeom
+from scipy import stats
+from scipy import spatial
+from scipy.interpolate import griddata
+from scipy.spatial import ConvexHull, convex_hull_plot_2d
+import sys
+import gc
+from geodatasets import get_path
+import geopandas
+import glob
+import gzip
+import urllib.request
+import warnings
+warnings.filterwarnings("ignore")
+import wradlib
+import xarray as xr
+import xradar as xd
+import zipfile
+
+try:
+    from metpy.plots import USCOUNTIES
+    county_scales = ['20m', '5m', '500k']
+    COUNTIES = USCOUNTIES.with_scale(county_scales[0])
+except ImportError:
+    COUNTIES = None
+
+obsticles = "https://aeronav.faa.gov/Obst_Data/DOF_250511.zip"
+urllib.request.urlretrieve(obsticles, "DOF_250511.zip")
+
+zipdata = zipfile.ZipFile('DOF_250511.zip')
+zipinfos = zipdata.infolist()
+
+entln_data = lma_read.entln('/Users/BenLa/.spyder-py3/LEEpulse_full.csv')
+
+# iterate through each file
+for zipinfo in zipinfos:
+    # This will do the renaming
+    if '.csv' in zipinfo.filename:
+        print("Found ", zipinfo.filename)
+    # We can override the filename. Neat!\n",
+    zipinfo.filename = 'turbine_locations.csv'
+    zipdata.extract(zipinfo)
+
+
+def haversine(lat1, lon1, lat2, lon2):
+
+      R = 6378.137e3 # this is in meters.  For Earth radius in kilometers use 6372.8 km
+
+      dLat = radians(lat2 - lat1)
+      dLon = radians(lon2 - lon1)
+      lat1 = radians(lat1)
+      lat2 = radians(lat2)
+
+      a = sin(dLat/2)**2 + cos(lat1)*cos(lat2)*sin(dLon/2)**2
+      c = 2*asin(sqrt(a))
+
+      return R * c    
+
+def negativeaxis(position, radar):
+    
+    if position < 0:
+        if position < radar.longitude['data'][0]:
+            return True
+    else:
+        if position < radar.latitude['data'][0]:
+            return True
+    return False
+
+def explode_xy(xy):
+    xl=[]
+    yl=[]
+    xy2=[]
+    for y in range(len(xy)):
+        xl.append(xy[y][0])
+        yl.append(xy[y][1])
+    xl = pm.geodetic2enu(yl, xl, 10000, yl[0], xl[0], 10000)[0]*1e-3
+    yl = pm.geodetic2enu(yl, xl, 10000, yl[0], xl[0], 10000)[1]*1e-3
+    for u in range(len(xl)): xy2.append([xl[u], yl[u]])
+    return xy2
+
+def ReadRadar(radar_file):
+    radar_list = []
+    start_times = []
+    for files in radar_file:
+        print("Reading: " + files)
+        radar = pyart.io.read(files)
+        radar_list.append(radar)
+        radar_name = radar.metadata['instrument_name']
+        start = dt.datetime.strptime(files.split('/')[-1], radar_name + "%Y%m%d_%H%M%S_V06").strftime('%d/%m/%Y %H%M.%S')
+        start_times.append(start)
+    
+    return radar_list, start_times
+
+def GridRadar(radar_objs):
+        grided = []
+        for radars in radar_objs:
+                grided.append(pyart.map.grid_from_radars(radars, grid_shape=(20, 181, 181), grid_limits=((100, 15000), (-175000, 175000), (-155000, 155000)), grid_origin=(pyart.graph.RadarMapDisplay(radars).loc[0], pyart.graph.RadarMapDisplay(radars).loc[1]), fields=["reflectivity", 'spectrum_width', 'differential_reflectivity', 'cross_correlation_ratio', 'velocity', 'differential_phase']))
+        
+        return grided
+
+#Bee's
+data = zipfile.ZipFile('DOF_250511.zip')
+infos = data.infolist()
+
+for info in infos:
+    if '36-NY' in info.filename:
+        print(info.filename)
+        info.filename = 'NewYork_Obsticles.Dat'
+        data.extract(info)
+        
+for info in infos:
+    if '46-SD' in info.filename:
+        print(info.filename)
+        info.filename = 'SouthDakota_Obsticles.Dat'
+        data.extract(info)
+
+ds = xr.open_dataset('/Users/BenLa/.spyder-py3/LYLOUT_221117_080000_360000_map4000NovFull1.nc')
+starttime, endtime = ds.grid_time_edge[0].data, ds.grid_time_edge[-1].data
+
+lma_ctr_lon, lma_ctr_lat = ds.network_center_longitude.data, ds.network_center_latitude.data
+
+OSW_lat, OSW_lon = 43.454722, -76.506667
+Lowville_lat, Lowville_lon = 43.786667, -75.492222
+KTYX_lat, KTYX_lon, KTYX_alt = 43.7558, -75.68, 562.0
+Smokestack_lat, Smokestack_lon = 43.4592, -76.5312
+MET_lat, MET_lon = 43.86273794268999, -75.72739760477387
+_144_lat, _144_lon = 43.87550831325867, -75.70463107539224
+_083_lat, _083_lon = 43.89425516855627, -75.64199511682814
+station_lons = [OSW_lon, Lowville_lon, KTYX_lon, Smokestack_lon]
+station_lats = [OSW_lat, Lowville_lat, KTYX_lat, Smokestack_lat]
+station_labels = ['Oswego', 'Lowville', 'KTYX', 'Smokestack']
+tower_lons = [MET_lon, _144_lon, _083_lon]
+tower_lats = [MET_lat, _144_lat, _083_lat]
+
+DOF = './NewYork_Obsticles.Dat'
+#identify different columns within NewYork_Obsticles.Dat and set them to the corresponding variables
+#also skip the first 9000-ish rows as those are all downstate and not apart of our area of interest
+specs = [(35, 37), (37, 41), (41, 46), (48, 52), (52, 55), (55, 60), (82, 88), (62, 74)]
+StateObs2 = pd.read_fwf(DOF, colspecs = specs, skiprows=4, names=('ylatdeg', 'ylatmin', 'ylatsec', 'xlongdeg', 'xlongmin', 'xlongsec', 'Elevation (ft)', 'Obsticle'))
+#NYObs2 = pd.read_fwf('D:/NewYork_Obsticles.Dat', colspecs = specs, skiprows=9209, skipfooter =1,  names=('ylatdeg', 'ylatmin', 'ylatsec', 'xlongdeg', 'xlongmin', 'xlongsec', 'Elevation (ft)', 'Obsticle'))
+
+#Bee's
+#convert the deg/min/sec for lat and long to decimal format
+StateObs2['ylat']=StateObs2['ylatdeg']+StateObs2['ylatmin']/60+StateObs2['ylatsec']/3600
+StateObs2['xlong']=(StateObs2['xlongdeg']+StateObs2['xlongmin']/60+StateObs2['xlongsec']/3600)*-1
+
+#Bee's
+#get rid of the deg/min/sec columns and send it to a csv file
+StateObs2.drop(columns=['ylatdeg', 'ylatmin', 'ylatsec', 'xlongdeg', 'xlongmin', 'xlongsec']).to_csv(r'/Users/BenLa/.spyder-py3/State_Obsticles.csv')
+StateObs3 = pd.read_csv('./State_Obsticles.csv')
+
+class AnnotatedLMAPlot(InteractiveLMAPlot):
+    # @output.capture()
+    def make_plot(self):
+        # Use the built-in LMA functionality
+        super(AnnotatedLMAPlot, self).make_plot()
+        
+        # Add our own title
+        tlim = self.bounds['t']
+        tlim_sub = pd.to_datetime(tlim[0]), pd.to_datetime(tlim[1])
+        title = tlim_sub[0].strftime('%Y%m%d %H%M%S') + ' to ' + tlim_sub[1].strftime('%Y%m%d %H%M%S') + ' UTC'
+        self.lma_plot.ax_th.set_title(title)
+        
+        # Add the station positions we defined above, and label them. We only need to add them to the plan-view plot.
+        # The other axes are self.lma_plot.ax_th, .ax_lon, and .ax_lat.
+        new_artists = []
+        art = self.lma_plot.ax_plan.scatter(station_lons, station_lats, s = 1, color='k', zorder=-10, mouseover = True)
+        new_artists.append(art)
+        for slon,slat,slabel in zip(station_lons, station_lats, station_labels):
+            txt_art = self.lma_plot.ax_plan.text(slon, slat, slabel)
+            new_artists.append(txt_art)
+        
+        # Add the wind turbines. We don't worry about filtering to just those in the plot,
+        # though we could do that here using 
+        #turbine_color=(0,0,1.0,0.5)
+        #art = self.lma_plot.ax_plan.scatter(turbines.xlong, turbines.ylat, color=turbine_color, marker='1', zorder=-10)
+        #new_artists.append(art)
+        #self.data_artists.extend(new_artists)
+
+        #Bee's
+        #Add all the other obstacles and turbines from the NewYork_Obsticles File
+        obs_colour = (0.0,1.0,0.2,0.3)
+        tower_colour = (0.8,0.1,0.3,0.8)
+        art = self.lma_plot.ax_plan.scatter(StateObs3.xlong, StateObs3.ylat, color = obs_colour, marker = '1', zorder=-10)
+        art = self.lma_plot.ax_plan.scatter(tower_lons, tower_lats, color = tower_colour, marker = '1', zorder=-10)
+        new_artists.append(art)
+        
+class SuperLMAPlot(InteractiveLMAPlot):
+    def make_super_plot(self):
+        super(SuperLMAPlot, self).make_super_plot()
+        # Add our own title
+        tlim = self.bounds['t']
+        tlim_sub = pd.to_datetime(tlim[0]), pd.to_datetime(tlim[1])
+        title = tlim_sub[0].strftime('%Y%m%d %H%M%S') + ' to ' + tlim_sub[1].strftime('%Y%m%d %H%M%S') + ' UTC'
+        self.lma_plot.ax_th.set_title(title)
+        
+        # Add the station positions we defined above, and label them. We only need to add them to the plan-view plot.
+        # The other axes are self.lma_plot.ax_th, .ax_lon, and .ax_lat.
+        new_artists = []
+        art = self.lma_plot.ax_plan.scatter(station_lons, station_lats, s = 1, color='k', zorder=-10, mouseover = True)
+        new_artists.append(art)
+        for slon,slat,slabel in zip(station_lons, station_lats, station_labels):
+            txt_art = self.lma_plot.ax_plan.text(slon, slat, slabel)
+            new_artists.append(txt_art)
+            
+        #Bee's
+        #Add all the other obstacles and turbines from the NewYork_Obsticles File
+        windmill_array = []
+        MET_array = []
+        tower_array = []
+        bldg_array = []
+        utility_array = []
+        solar_array = []
+        for line in StateObs3['Obsticle'].index[StateObs3['Obsticle'] == 'WINDMILL']:
+                #print(StateObs3['xlong'][line], StateObs3['ylat'][line], StateObs3['Obsticle'][line])
+                windmill_array.append([StateObs3['xlong'][line], StateObs3['ylat'][line], StateObs3['Obsticle'][line]])
+                #print(dummy_array[0][0])
+        windmill_obs = pd.DataFrame(windmill_array, columns=['xlong', 'ylat', 'obstacles'])
+        for line in StateObs3['Obsticle'].index[StateObs3['Obsticle'] == 'MET']:
+                MET_array.append([StateObs3['xlong'][line], StateObs3['ylat'][line], StateObs3['Obsticle'][line]])
+        MET_obs = pd.DataFrame(MET_array, columns=['xlong', 'ylat', 'obstacles'])
+        for line in StateObs3['Obsticle'].index[StateObs3['Obsticle'] == 'TOWER']:
+                tower_array.append([StateObs3['xlong'][line], StateObs3['ylat'][line], StateObs3['Obsticle'][line]])
+        tower_obs = pd.DataFrame(tower_array, columns=['xlong', 'ylat', 'obstacles'])
+        for line in StateObs3['Obsticle'].index[StateObs3['Obsticle'] == 'BLDG']:
+                bldg_array.append([StateObs3['xlong'][line], StateObs3['ylat'][line], StateObs3['Obsticle'][line]])
+        bldg_obs = pd.DataFrame(bldg_array, columns=['xlong', 'ylat', 'obstacles'])
+        for line in StateObs3['Obsticle'].index[StateObs3['Obsticle'] == 'UTILITY POLE']:
+                utility_array.append([StateObs3['xlong'][line], StateObs3['ylat'][line], StateObs3['Obsticle'][line]])
+        utility_obs = pd.DataFrame(utility_array, columns=['xlong', 'ylat', 'obstacles'])
+        for line in StateObs3['Obsticle'].index[StateObs3['Obsticle'] == 'SOLAR PANELS']:
+                solar_array.append([StateObs3['xlong'][line], StateObs3['ylat'][line], StateObs3['Obsticle'][line]])
+        solar_obs = pd.DataFrame(solar_array, columns=['xlong', 'ylat', 'obstacles'])
+        #print(obs)
+        turbine_colour = (0.0,1.0,0.2,0.3) #green
+        MET_colour = (0.54, 0.5, 0.5, 0.9) #grey
+        tower_colour = (0.5,0.1,0.3,0.8) #dark red
+        tower_colour2 = (0.1, 0.9, 0.9, 0.8) #light blue
+        bldg_colour = (0.3, 0.1, 0.9, 0.9) #purple
+        utility_colour = (0.9, 0.7, 0.1, 0.8) #orange
+        solar_colour = (0, 0, 0, 1) #black
+        art = self.lma_plot.ax_plan.scatter(windmill_obs.xlong, windmill_obs.ylat, color = turbine_colour, marker = '1', zorder=-10)
+        art = self.lma_plot.ax_plan.scatter(MET_obs.xlong, MET_obs.ylat, color = MET_colour, marker = '1', zorder=-10)
+        art = self.lma_plot.ax_plan.scatter(tower_obs.xlong, tower_obs.ylat, color = tower_colour2, marker = '1', zorder=-10)
+        art = self.lma_plot.ax_plan.scatter(bldg_obs.xlong, bldg_obs.ylat, color = bldg_colour, marker = '1', zorder=-10)
+        art = self.lma_plot.ax_plan.scatter(tower_lons, tower_lats, color = tower_colour, marker = 'd', zorder=20)
+        art = self.lma_plot.ax_plan.scatter(bldg_obs.xlong, bldg_obs.ylat, color = bldg_colour, marker = '1', zorder=-10)
+        art = self.lma_plot.ax_plan.scatter(utility_obs.xlong, utility_obs.ylat, color = utility_colour, marker = '1', zorder=-10)
+        art = self.lma_plot.ax_plan.scatter(solar_obs.xlong, solar_obs.ylat, color = solar_colour, marker = '1', zorder=-10)
+        new_artists.append(art)
+
+radar_data, start_times = lmarad.ReadRadar(["C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_080103_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_080637_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_081311_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_081833_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_082354_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_082916_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_083451_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_084043_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_084649_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_085240_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_085830_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_090420_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_091011_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_091617_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_092223_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_092826_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_093432_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_094037_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_094643_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_095249_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_095855_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_100500_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_101106_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_101710_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_102316_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_102920_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_103526_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_104132_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_104738_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_105344_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_105949_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_110553_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_111159_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_111805_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_112411_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_113017_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_113621_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_114226_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_114831_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_115435_V06",
+"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_120040_V06"]
+
+xsecLatLonAlt = [-76.26, 43.64, -75.43, 43.97, 15]
+tlim = pd.to_datetime(starttime).to_pydatetime()-pd.Timedelta(hours=1), pd.to_datetime(endtime).to_pydatetime()-pd.Timedelta(hours=1)
+
+#interactive_lma = AnnotatedLMAPlot(ds, clon=lma_ctr_lon, clat=lma_ctr_lat, tlim=tlim) #, network_data = entln_data)
+
+interactive_lma = SuperLMAPlot(ds, clon=lma_ctr_lon, clat=lma_ctr_lat,tlim=tlim, network_data = entln_data, radar_data = radar_data, points = xsecLatLonAlt)
+
+#%% Radar Download
+# Set the WSR-88D radar name
+radar_id = 'KTYX'
+#radar_id = 'KTLX'
+#radar_id = 'KUDX'
+begin = dt.datetime(2022,11,20,11)
+spacing = [0, 10]
+
+## Set the plotting criteria!
+min_stations = 6 # more stations = more confident it's a good solution
+max_chi = 1 # lower reduced chi^2 = more confident it's a good solution
+tbuffer = 6*60 # How many seconds AFTER the radar scan time do you want to plot LMA data?
+max_dist = 2.5e3 # meters, max distance of an LMA source to a radar cross-section plane to be plotted
+
+min_events_per_flash = 5 # Minimum number of sources per flash
+
+#Create datetime objects for the start & end times to download:
+start=begin - dt.timedelta(minutes=spacing[0])
+end = start + dt.timedelta(minutes=spacing[1])
+
+# Create a folder to store the data
+downloadloc = f'{start:%Y%m%d%H}_{radar_id}'
+
+# Determine What scans are avaiable for the radar site and times listed
+scans = conn.get_avail_scans_in_range(start, end, radar_id)
+
+print("There are {} scans available between {} and {}".format(len(scans), start, end))
+print(scans[0:4])
+
+download the data
+results = conn.download(scans, downloadloc)
+
+files = []
+files = sorted(glob.glob(f'{downloadloc}/*V06'))
+
+radar_pickle = files[0]+str(len(files))+'.pickle'
+reflectivity_grids = []
+
+if os.path.exists(radar_pickle):
+    with open(radar_pickle, 'rb') as pickle_file:
+        grided_radar = pickle.load(pickle_file) 
+else:
+        radar_list, start_times = ReadRadar(files)
+        grided_radar = GridRadar(radar_list)
+
+        with open(radar_pickle, 'wb') as pickle_file:
+                pickle.dump(grided_radar, pickle_file)
+
+filler_grid = np.full_like(grided_radar[0].fields['reflectivity']['data'].data, -10)
+for number in grided_radar[:-1]:
+        #filler_grid = np.full_like(number.fields["reflectivity"]['data'].data, -10)
+        #print(height, row, column)
+        height = 0
+        while height < grided_radar[0].fields['reflectivity']['data'].shape[0]:
+                #print('height')
+                #print(height)
+                row = 0
+                while row < grided_radar[0].fields['reflectivity']['data'].shape[1]:
+                        #print('row')
+                        #print(row)
+                        column = 0
+                        while column < grided_radar[0].fields['reflectivity']['data'].shape[2]:
+                                #print("column")
+                                #print(column)
+                                if filler_grid[0][row][column] < number.fields['reflectivity']['data'].data[height][row][column]:
+                                        filler_grid[0][row][column] = number.fields['reflectivity']['data'].data[height][row][column]
+                                        #print(filler_grid[row][column])
+                                column += 1
+                        row += 1
+                height += 1
+        filler_grid[0] = np.select([filler_grid[0] < 1], [np.nan], filler_grid[0])
+        composite_dict = {"data": filler_grid, 'units': 'dBZ', 'long_name': 'composite_reflectivity', '_FillValue': filler_grid, 'standard_name': 'composite_reflectivity'}
+        number.add_field('composite_reflectivity', composite_dict, replace_existing=True)
+        
+        reflectivity_grids.append(10**(number.fields["reflectivity"]['data'][0]/10))
+        
+        #reflectivity_grids.append((number.fields["reflectivity"]['data'][0]))
+        #print(number.fields['reflectivity']['data'][0])
+
+save = np.full_like(reflectivity_grids[0], 0)
+divisor = np.full_like(reflectivity_grids[0], 0)
+for amount in reflectivity_grids:
+        for cols in range(amount.shape[1]):
+                for rows in range(amount.shape[0]):
+                        if amount[cols][rows]:
+                                save[cols][rows] += amount[cols][rows]
+                         
+save = 10 * np.log10(save/len(reflectivity_grids))
+
+fig = plt.figure(figsize=(20, 20))
+ax = plt.subplot(projection = ccrs.PlateCarree())                                                    #left, right, bottom, top
+ax.imshow(save,vmin = -20, vmax=60, cmap='pyart_HomeyerRainbow',extent=(grided_radar[0].origin_longitude['data'][0]-1.5, grided_radar[0].origin_longitude['data'][0]+1.5, grided_radar[0].origin_latitude['data'][0]+1.5, grided_radar[0].origin_latitude['data'][0]-1.5))
+ax.invert_yaxis() 
+ax.add_feature(COUNTIES, facecolor='none', edgecolor='gray')
+ax.add_feature(cfeature.BORDERS)
+ax.add_feature(cfeature.STATES, edgecolor = 'blue')
+
+plt.show()
+
+radar_pickle = files[0]+str(len(files))+'.pickle'
+levels = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
+frequency_grids = []
+
+if os.path.exists(radar_pickle):
+    with open(radar_pickle, 'rb') as pickle_file:
+        radar_frequency_files = pickle.load(pickle_file) 
+else:
+        radar_frequency_files, radar_frequency_start = lmarad.ReadRadar(files)
+
+        with open(radar_pickle, 'wb') as pickle_file:
+                pickle.dump(radar_frequency_files, pickle_file)
+
+
+for number in radar_frequency_files[:-1]:
+        #print(number)
+        frequency_grids.append((number.fields["reflectivity"]['data'][0]))
+        
+        
+fsave = np.full_like(frequency_grids[0], 0)
+for famount in frequency_grids:
+        for fcols in range(famount.shape[1]):
+                for frows in range(famount.shape[0]):
+                        if famount[fcols][frows] > 20:
+                                fsave[fcols][frows] += 1
+fsave = fsave/np.max(fsave)
+                                
+fig = plt.figure(figsize=(20, 20))
+ax = plt.subplot(projection = ccrs.PlateCarree())
+im = ax.imshow(fsave, vmin = 0, vmax = np.max(fsave), cmap = 'HomeyerRainbow', alpha = 0.5, extent=(radar_frequency_files[0].origin_longitude['data'][0]-1.5, radar_frequency_files[0].origin_longitude['data'][0]+1.5, radar_frequency_files[0].origin_latitude['data'][0]+1.5, radar_frequency_files[0].origin_latitude['data'][0]-1.5))                                
+ok = ax.contour(fsave, vmin = 0, vmax = np.max(fsave)/np.max(fsave), levels = levels, cmap = 'HomeyerRainbow', origin = 'upper', extent=(radar_frequency_files[0].origin_longitude['data'][0]-1.5, radar_frequency_files[0].origin_longitude['data'][0]+1.5, radar_frequency_files[0].origin_latitude['data'][0]+1.5, radar_frequency_files[0].origin_latitude['data'][0]-1.5))
+ax.invert_yaxis()
+fig.colorbar(im)
+fig.colorbar(ok)
+ax.add_feature(COUNTIES, facecolor = 'none', edgecolor = 'gray')
+ax.add_feature(cfeature.BORDERS)
+ax.add_feature(cfeature.STATES, edgecolor = 'blue')
+
+plt.show()
+
+grid_size = 0.025 #0.025 degress lat/lon
+xedge = np.arange(int(interactive_lma.bounds['x'][0])-1, int(interactive_lma.bounds['x'][1])+1, grid_size)
+yedge = np.arange(int(interactive_lma.bounds['y'][0])-1, int(interactive_lma.bounds['y'][1])+1, grid_size)
+
+
+eventx = interactive_lma.this_lma_lon
+eventy = interactive_lma.this_lma_lat
+eventt = interactive_lma.this_lma_time
+
+event_center = (np.mean([interactive_lma.bounds['x'][0], interactive_lma.bounds['x'][1]]),
+                np.mean([interactive_lma.bounds['y'][0], interactive_lma.bounds['y'][1]]))
+
+#grid_edge = [event_center[0]-zoom, event_center[0]+zoom, event_center[1]+zoom, event_center[1]-zoom] #left, right, top, bottom
+#gridx = np.linspace(start = (event_center[0]-zoom), stop = (event_center[0]+zoom), num = grid_number)
+#gridy = np.linspace(start = (event_center[1]+zoom), stop = (event_center[1]-zoom), num = grid_number)
+#mesh_gridx, mesh_gridy = np.meshgrid(gridx, gridy)
+
+grid_points, xedges, yedges = np.histogram2d(eventy, eventx, bins = (yedge, xedge))
+
+#grided_data = griddata((eventx, eventy), grid_points, (mesh_gridx, mesh_gridy), method = 'linear')
+
+grid_fig = plt.figure(figsize=(10, 4.5))
+ax = plt.subplot(projection = ccrs.PlateCarree())
+ax.add_feature(COUNTIES, facecolor='none', edgecolor='gray')
+ax.add_feature(cfeature.BORDERS)
+ax.add_feature(cfeature.STATES, edgecolor = 'blue')
+#plt.plot(mesh_gridx, mesh_gridy, marker='o', color='k', linestyle='none')
+
+#This is for adding radar data to the FED plot (optional)
+#display.plot_ppi_map('reflectivity', sweep, vmin = -20, vmax=60, alpha = 0.1, cmap='pyart_HomeyerRainbow', colorbar_flag = False, title_flag = False, add_grid_lines = False, min_lat=radar_data.latitude['data'][0]-2, max_lat=radar_data.latitude['data'][0]+2, min_lon=radar_data.longitude['data'][0]-2, max_lon=radar_data.longitude['data'][0]+2, ax = ax)
+lol = ax.imshow(save,vmin=0, vmax=60, cmap='pyart_HomeyerRainbow', alpha = 0.5, zorder = 10, extent=(grided_radar[0].origin_longitude['data'][0]-1.5, grided_radar[0].origin_longitude['data'][0]+1.5, grided_radar[0].origin_latitude['data'][0]+1.5, grided_radar[0].origin_latitude['data'][0]-1.5))
+ax.contour(fsave, vmin=0, vmax=np.max(fsave)/np.max(fsave), levels = levels, cmap='HomeyerRainbow', zorder = 15, alpha = 0.7, origin = 'upper', extent=(radar_frequency_files[0].origin_longitude['data'][0]-1.5, radar_frequency_files[0].origin_longitude['data'][0]+1.5, radar_frequency_files[0].origin_latitude['data'][0]+1.5, radar_frequency_files[0].origin_latitude['data'][0]-1.5))
+im = ax.pcolormesh(yedges, xedges, grid_points, norm = 'log', zorder = 11, cmap=load_cmap("LightBlue2DarkBlue10Steps"), vmin = 1, vmax = 1000, alpha = 1)
+#ax.set_xlim(event_center[0]-zoom, event_center[0]+zoom)
+#ax.set_ylim(event_center[1]-zoom, event_center[1]+zoom)
+#ax.set_xlim(-77.160, -75.419)
+ax.set_xlim(-77.7, -75.21)
+#ax.set_ylim(43.33, 44.09)
+ax.set_ylim(43.33, 44.2)
+ax.plot(-76.506667, 43.454722, 'o', color = 'k', markersize = 7, zorder = 20)
+ax.text(-76.496667, 43.464722, 'Oswego', color = 'k', fontsize = 12, zorder = 20)
+ax.plot(-75.91142238037271, 43.97305891066422, 'o', color = 'k', markersize = 7, zorder = 20)
+ax.text(-75.89142238037271, 43.99305891066422, 'Watertown', color = 'k', fontsize = 12, zorder = 20)
+ax.plot(-75.68, 43.7558, 'o', color = 'k', markersize = 7, zorder = 20)
+ax.text(-75.665, 43.7658, 'KTYX', color = 'k', fontsize = 12, zorder = 20)
+ax.plot(-75.6364, 43.8218, 'o', color = 'k', markersize = 7, zorder = 20)
+ax.text(-75.6464, 43.8178, 'Wind Turbine \n    Fields', color = 'k', fontsize = 12, zorder = 20)
+#ax.axes('off')
+#plt.imshow(grided_data, cmap = 'cool')
+plt.tight_layout()
+plt.show()
+
+image1 = Image.open('C:/Users/BenLa/Downloads/FED_0951-1214_PlotAvg_ContFrequ20_ver4.png')
+image1_array = np.array(image1)
+
+image2 = Image.open("C:/Users/BenLa/Downloads/FED_0815-1551_PlotAvg_ContFrequ20.png")
+image2_array = np.array(image2)
+
+image3 = Image.open("C:/Users/BenLa/Downloads/FED_2211-0443_PlotAvg_ContFrequ20_ver2.png")
+image3_array = np.array(image3)
+
+image4 = Image.open("C:/Users/BenLa/Downloads/FED_0738-1029_PlotAvg_ContFrequ20_ver4.png")
+image4_array = np.array(image4)
+
+image5 = Image.open('C:/Users/BenLa/Downloads/FED_1029-1402_plotAvg_ContFrequ20.png')
+image5_array = np.array(image5)
+
+image6 = Image.open('C:/Users/BenLa/Downloads/FED_1735-2117_PlotAvg_ContFrequ20_ver3.png')
+image6_array = np.array(image6)
+
+fig = plt.figure(figsize=(24, 15))
+
+ax1 = fig.add_axes([0.01, 0.65, 0.39, 0.32])
+ax1.axis('off')
+fig.text(0.12, 0.93, '17 Nov 2022 0945-1215 UTC \n           30 Radar Scans', fontsize = 20)
+fig.text(0.02, 0.89, '(a)', fontsize = 18, fontweight = 'bold')
+ax2 = fig.add_axes([0.41, 0.65, 0.39, 0.32])
+ax2.axis('off')
+fig.text(0.52, 0.93, '18 Nov 2022 0815-1600 UTC \n           92 Radar Scans', fontsize = 20)
+fig.text(0.42, 0.89, '(b)', fontsize = 18, fontweight = 'bold')
+ax3 = fig.add_axes([0.01, 0.35, 0.39, 0.32])
+ax3.axis('off')
+fig.text(0.09, 0.63, '18 Nov 2022 2215 - 19 Nov 2022 0445 UTC \n                    72 Radar Scans', fontsize = 20)
+fig.text(0.02, 0.59, '(c)', fontsize = 18, fontweight = 'bold')
+ax4 = fig.add_axes([0.41, 0.35, 0.39, 0.32])
+ax4.axis('off')
+fig.text(0.52, 0.63, '20 Nov 2022 0730-1030 UTC \n           30 Radar Scans', fontsize = 20)
+fig.text(0.42, 0.59, '(d)', fontsize = 18, fontweight = 'bold')
+ax5 = fig.add_axes([0.01, 0.05, 0.39, 0.32])
+ax5.axis('off')
+fig.text(0.12, 0.33, '20 Nov 2022 1030-1402 UTC \n           36 Radar Scans', fontsize = 20)
+fig.text(0.02, 0.29, '(e)', fontsize = 18, fontweight = 'bold')
+ax6 = fig.add_axes([0.41, 0.05, 0.39, 0.32])
+ax6.axis('off')
+fig.text(0.52, 0.33, '20 Nov 2022 1735-2115 UTC \n           45 Radar Scans', fontsize = 20)
+fig.text(0.42, 0.29, '(f)', fontsize = 18, fontweight = 'bold')
+
+cax = fig.add_axes([0.82, 0.05, 0.03, 0.9])
+cax3 = fig.add_axes([0.89, 0.05, 0.03, 0.9])
+cax2 = fig.add_axes([0.89, 0.05, 0.03, 0.9])
+
+ax1.imshow(image1_array)
+ax2.imshow(image2_array)
+ax3.imshow(image3_array)
+ax4.imshow(image4_array)
+ax5.imshow(image5_array)
+ax6.imshow(image6_array)
+
+cbar = fig.colorbar(im, cax, orientation='vertical')
+cbar.set_label(label = '  LMA Points Per Grid Box', size = 20, rotation=270, labelpad=15)
+cbar.ax.tick_params(labelsize=15)
+
+levels2 = [6, 12, 18, 24, 30, 36, 42, 48, 54, 59.9]
+cbar3 = fig.colorbar(ok, cax3, orientation='vertical', ticks = [0.19, 0.28, 0.37, 0.46, 0.55, 0.64, 0.73, 0.82, 0.91, 1])
+cbar3.ax.set_yticklabels(['10%', '20%', '30%', '40%', '    ,  50%', '60%', '70%', '80%', '90%', '    ,  100%'])
+cbar3.ax.tick_params(labelsize=15)
+#cbar3.set_label(label = 'Frequency of Reflectivity > 20 dBZ per Grid Box', size = 20, rotation = 270, labelpad = 50)
+
+cbar2 = fig.colorbar(lol, cax2, orientation='vertical')
+cbar2.set_label(label = '  Mean Reflectivity in dBZ (Filled) \n Percent of Radar Scans with Reflectivity > 20 dBZ (Line)', size = 20, rotation=270, labelpad=95)
+cbar2.add_lines(levels = levels2, colors = ['#026dc6', '#76bed1', '#7fcbb0', '#a0e185', '#ddfa67', '#e6da24', '#dfa700', '#d67000', '#ca3800', '#c42421'], linewidths = [4, 4, 4, 4, 4, 4, 4, 4, 4, 4])
+cbar2.ax.tick_params(labelsize=15)
+
+plt.tight_layout()
+plt.show()
