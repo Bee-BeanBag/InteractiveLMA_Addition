@@ -8,7 +8,7 @@ Currently tested for windows. Linux and Mac ports in development
 git clone https://github.com/Bee-BeanBag/InteractiveLMA_Addition.git
 cd InteractiveLMA_Addition
 conda env create -f environment.yml
-
+pip install git+https://github.com/Bee-BeanBag/xlma-python.git
 ```
 
 From here you are able to make use of all the additions! Examples of the functions can be found in test_code.py with the source for each function in Thesis_Code_Functs.py
