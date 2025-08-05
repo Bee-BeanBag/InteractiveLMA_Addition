@@ -8,18 +8,13 @@ from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 import csv
 import datetime as dt
 from datetime import datetime, timedelta
-from geopy import distance
-import h5py
 from ipywidgets import interact, widgets
 from math import radians, cos, sin, asin, sqrt, degrees, atan, log
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 from matplotlib.colors import LogNorm
-import matplotlib.dates as md
 from matplotlib.dates import AutoDateLocator
 import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
-from matplotlib.ticker import Formatter, FormatStrFormatter, MaxNLocator
 from metpy.plots import USCOUNTIES
 import nexradaws
 conn = nexradaws.NexradAwsInterface()
@@ -28,11 +23,8 @@ import numpy.ma as ma
 norm = np.linalg.norm
 import os
 import pandas as pd
-from pathlib import Path
 import pickle
-from PIL import Image
 import pyart
-import pymap3d as pm
 from pyxlma import coords
 from pyxlma.lmalib.flash.cluster import cluster_flashes
 import pyxlma.lmalib.flash.properties
@@ -49,26 +41,10 @@ import pyxlma.plot.xlma_super_base_plot
 import pyxlma.plot.radar as lmarad
 import pyxlma.plot.leader_speed as lmaleader
 from pypalettes import load_cmap
-import pyproj as proj4
-import requests
-import shapely.geometry as sgeom
 from scipy import stats
 from scipy import spatial
-from scipy.interpolate import griddata
-from scipy.spatial import ConvexHull, convex_hull_plot_2d
-import sys
-import gc
-from geodatasets import get_path
-import geopandas
-import glob
-import gzip
-import urllib.request
 import warnings
 warnings.filterwarnings("ignore")
-import wradlib
-import xarray as xr
-import xradar as xd
-import zipfile
 
 try:
     from metpy.plots import USCOUNTIES

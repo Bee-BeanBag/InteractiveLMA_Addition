@@ -18,7 +18,7 @@ from pyxlma.plot.xlma_plot_feature import color_by_time, plot_points, setup_hist
 import pyxlma.plot.xlma_super_plot_feature
 import pyxlma.plot.xlma_super_base_plot
 import pyxlma.plot.radar as lmarad
-import Thesis_Code_Functs as lmafuncts
+import InteractiveLMA_Addition.Thesis_Code_Functs as lmafuncts
 import pandas as pd
 import warnings
 warnings.filterwarnings("ignore")
