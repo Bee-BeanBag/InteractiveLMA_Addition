@@ -8,13 +8,18 @@ from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 import csv
 import datetime as dt
 from datetime import datetime, timedelta
+from geopy import distance
+import h5py
 from ipywidgets import interact, widgets
 from math import radians, cos, sin, asin, sqrt, degrees, atan, log
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 from matplotlib.colors import LogNorm
+import matplotlib.dates as md
 from matplotlib.dates import AutoDateLocator
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
+from matplotlib.ticker import Formatter, FormatStrFormatter, MaxNLocator
 from metpy.plots import USCOUNTIES
 import nexradaws
 conn = nexradaws.NexradAwsInterface()
@@ -23,8 +28,11 @@ import numpy.ma as ma
 norm = np.linalg.norm
 import os
 import pandas as pd
+from pathlib import Path
 import pickle
+from PIL import Image
 import pyart
+import pymap3d as pm
 from pyxlma import coords
 from pyxlma.lmalib.flash.cluster import cluster_flashes
 import pyxlma.lmalib.flash.properties
@@ -41,10 +49,26 @@ import pyxlma.plot.xlma_super_base_plot
 import pyxlma.plot.radar as lmarad
 import pyxlma.plot.leader_speed as lmaleader
 from pypalettes import load_cmap
+import pyproj as proj4
+import requests
+import shapely.geometry as sgeom
 from scipy import stats
 from scipy import spatial
+from scipy.interpolate import griddata
+from scipy.spatial import ConvexHull, convex_hull_plot_2d
+import sys
+import gc
+from geodatasets import get_path
+import geopandas
+import glob
+import gzip
+import urllib.request
 import warnings
 warnings.filterwarnings("ignore")
+import wradlib
+import xarray as xr
+import xradar as xd
+import zipfile
 
 try:
     from metpy.plots import USCOUNTIES
@@ -527,37 +551,14 @@ def AvgRad(radlist):
 
         filler_grid = np.full_like(grided_radar[0].fields['reflectivity']['data'].data, -10)
         for number in grided_radar[:-1]:
-                #filler_grid = np.full_like(number.fields["reflectivity"]['data'].data, -10)
-                #print(height, row, column)
-                height = 0
-                while height < grided_radar[0].fields['reflectivity']['data'].shape[0]:
-                        #print('height')
-                        #print(height)
-                        row = 0
-                        while row < grided_radar[0].fields['reflectivity']['data'].shape[1]:
-                                #print('row')
-                                #print(row)
-                                column = 0
-                                while column < grided_radar[0].fields['reflectivity']['data'].shape[2]:
-                                        #print("column")
-                                        #print(column)
-                                        if filler_grid[0][row][column] < number.fields['reflectivity']['data'].data[height][row][column]:
-                                                filler_grid[0][row][column] = number.fields['reflectivity']['data'].data[height][row][column]
-                                                #print(filler_grid[row][column])
-                                        column += 1
-                                row += 1
-                        height += 1
-                filler_grid[0] = np.select([filler_grid[0] < 1], [np.nan], filler_grid[0])
-                composite_dict = {"data": filler_grid, 'units': 'dBZ', 'long_name': 'composite_reflectivity', '_FillValue': filler_grid, 'standard_name': 'composite_reflectivity'}
-                number.add_field('composite_reflectivity', composite_dict, replace_existing=True)
-                
                 reflectivity_grids.append(10**(number.fields["reflectivity"]['data'][0]/10))
                 
                 #reflectivity_grids.append((number.fields["reflectivity"]['data'][0]))
                 #print(number.fields['reflectivity']['data'][0])
 
-        save = np.full_like(reflectivity_grids[0], 0)
-        divisor = np.full_like(reflectivity_grids[0], 0)
+
+        save = np.zeros((reflectivity_grids[0].shape[0], reflectivity_grids[0].shape[1]))
+        divisor = np.zeros((reflectivity_grids[0].shape[0], reflectivity_grids[0].shape[1]))
         for amount in reflectivity_grids:
                 for cols in range(amount.shape[1]):
                         for rows in range(amount.shape[0]):
@@ -597,7 +598,7 @@ def FrequRad(radlist):
                 frequency_grids.append((number.fields["reflectivity"]['data'][0]))
                 
                 
-        fsave = np.full_like(frequency_grids[0], 0)
+        fsave = np.zeros((frequency_grids[0].shape[0], frequency_grids[0].shape[1]))
         for famount in frequency_grids:
                 for fcols in range(famount.shape[1]):
                         for frows in range(famount.shape[0]):
