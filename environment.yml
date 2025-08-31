@@ -16,9 +16,11 @@ dependencies:
   - conda-forge::geodatasets
   - conda-forge::geopandas
   - conda-forge::wradlib
+  - conda-forge::xarray
   - jupyterlab_widgets
   - ipympl
   - jupyterlab
 prefix: C:\Users\BenLa\anaconda3\envs\LMAAddition
+
 
 
