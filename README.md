@@ -7,7 +7,7 @@ Currently tested for windows. Linux and Mac ports in development
 ```
 git clone https://github.com/Bee-BeanBag/InteractiveLMA_Addition.git
 cd InteractiveLMA_Addition
-conda env create -f environment.yml
+conda env create -f InteractiveLMA_Addition_Install.yml
 pip install git+https://github.com/Bee-BeanBag/xlma-python.git
 ```
 
