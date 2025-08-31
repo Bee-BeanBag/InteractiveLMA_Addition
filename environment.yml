@@ -20,7 +20,9 @@ dependencies:
   - jupyterlab_widgets
   - ipympl
   - jupyterlab
+  - xarray
 prefix: C:\Users\BenLa\anaconda3\envs\LMAAddition
+
 
 
 
