@@ -8,6 +8,7 @@ dependencies:
   - conda
   - spyder
   - geopy
+  - conda-forge::arm_pyart
   - conda-forge::ipywidgets
   - conda-forge::metpy
   - conda-forge::pymap3d
@@ -19,3 +20,4 @@ dependencies:
   - ipympl
   - jupyterlab
 prefix: C:\Users\BenLa\anaconda3\envs\FlashAnalysis2
+
