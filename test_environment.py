@@ -1,7 +1,5 @@
-import pyart
 import urllib.request
 import zipfile
-import xarray as xr
 from pyxlma import coords
 from pyxlma.lmalib.flash.cluster import cluster_flashes
 import pyxlma.lmalib.flash.properties
