@@ -22,11 +22,12 @@ dependencies:
   - jupyterlab
   - xarray
   - pip:
-      - "https://github.com/deeplycloudy/xlma-python.git"
+      - https://github.com/deeplycloudy/xlma-python.git
       - xarray
       - arm_pyart
-      - "https://github.com/Bee-BeanBag/InteractiveLMA_Addition.git"
+      - https://github.com/Bee-BeanBag/InteractiveLMA_Addition.git
 prefix: C:\Users\BenLa\anaconda3\envs\LMAAddition
+
 
 
 
