@@ -1,4 +1,4 @@
-name: FlashAnalysis2
+name: LMAAddition
 channels:
   - defaults
 dependencies:
@@ -19,5 +19,6 @@ dependencies:
   - jupyterlab_widgets
   - ipympl
   - jupyterlab
-prefix: C:\Users\BenLa\anaconda3\envs\FlashAnalysis2
+prefix: C:\Users\BenLa\anaconda3\envs\LMAAddition
+
 
