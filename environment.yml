@@ -24,10 +24,12 @@ dependencies:
   - jupyterlab
   - xarray
   - pip:
-      - https://github.com/deeplycloudy/xlma-python.git
+      - git+https://github.com/Bee-BeanBag/xlma-python.git
       - xarray
       - arm_pyart
-      - https://github.com/Bee-BeanBag/InteractiveLMA_Addition.git
+      - git+https://github.com/Bee-BeanBag/InteractiveLMA_Addition.git
+
+
 
 
 
