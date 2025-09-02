@@ -235,11 +235,11 @@ interactive_lma = AnnotatedLMAPlot(ds, clon=lma_ctr_lon, clat=lma_ctr_lat, tlim=
 #%%
 #lmafuncts.VelocityPlot(interactive_lma)
 
-#lmafuncts.RadPlanPlot(interactive_lma, 'C:/Users/BenLa/anaconda3/envs/FlashAnalysis2/20221120_KTYX/KTYX20221120_205924_V06', xsec = [-77.11, 43.41, -75.68, 43.7, 15])
+#lmafuncts.RadPlanPlot(interactive_lma, "./KTYX20221120_115435_V06", xsec = [-77.11, 43.41, -75.68, 43.7, 15])
 
-#lmafuncts.RadXSecPlot(interactive_lma, 'C:/Users/BenLa/anaconda3/envs/FlashAnalysis2/20221120_KTYX/KTYX20221120_205924_V06', xsec = [-77.11, 43.41, -75.68, 43.7, 15])
+#lmafuncts.RadXSecPlot(interactive_lma, "./KTYX20221120_115435_V06", xsec = [-77.11, 43.41, -75.68, 43.7, 15])
 
-#lmafuncts.DOWPlot(interactive_lma, 'C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_110553_V06', 'C:/Users/BenLa/Downloads/cfrad.20221120_110610.994_DOW7_v135_s00_az359.90_RHI.nc')
+#lmafuncts.DOWPlot(interactive_lma, "./KTYX20221120_115435_V06", "./cfrad.20221120_115541.398_DOW7_v155_s00_az9.90_RHI")
 
 radar_list = ["./KTYX20221120_115435_V06"]
 avg = lmafuncts.AvgRad(radar_list)
