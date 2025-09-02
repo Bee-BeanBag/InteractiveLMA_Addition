@@ -241,16 +241,7 @@ interactive_lma = AnnotatedLMAPlot(ds, clon=lma_ctr_lon, clat=lma_ctr_lat, tlim=
 
 #lmafuncts.DOWPlot(interactive_lma, 'C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_110553_V06', 'C:/Users/BenLa/Downloads/cfrad.20221120_110610.994_DOW7_v135_s00_az359.90_RHI.nc')
 
-radar_list = ["C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_100500_V06",
-"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_101106_V06",
-"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_101710_V06",
-"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_102316_V06",
-"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_102920_V06",
-"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_103526_V06",
-"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_104132_V06",
-"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_104738_V06",
-"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_105344_V06",
-"C:/Users/BenLa/.spyder-py3/2022111808_KTYX/KTYX20221120_105949_V06"]
+radar_list = ["./KTYX20221120_115435_V06"]
 avg = lmafuncts.AvgRad(radar_list)
 frequ = lmafuncts.FrequRad(radar_list)
 
