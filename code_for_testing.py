@@ -53,7 +53,7 @@ for info in infos:
         info.filename = 'SouthDakota_Obsticles.Dat'
         data.extract(info)
         
-ds = xr.open_dataset('/Users/BenLa/.spyder-py3/LYLOUT_221117_080000_360000_map4000NovFull1.nc')
+ds = xr.open_dataset('./LYLOUT_221117_080000_360000_map4000NovFull1.nc')
 starttime, endtime = ds.grid_time_edge[0].data, ds.grid_time_edge[-1].data
 
 lma_ctr_lon, lma_ctr_lat = ds.network_center_longitude.data, ds.network_center_latitude.data
@@ -71,7 +71,7 @@ station_lats = [OSW_lat, Lowville_lat, KTYX_lat, Smokestack_lat]
 station_labels = ['Oswego', 'Lowville', 'KTYX', 'Smokestack']
 tower_lons = [MET_lon, _144_lon, _083_lon]
 tower_lats = [MET_lat, _144_lat, _083_lat]
-DOF = '/Users/BenLa/.spyder-py3/NewYork_Obsticles.Dat'
+DOF = './NewYork_Obsticles.Dat'
 
 specs = [(35, 37), (37, 41), (41, 46), (48, 52), (52, 55), (55, 60), (82, 88), (62, 74)]
 StateObs2 = pd.read_fwf(DOF, colspecs = specs, skiprows=4, names=('ylatdeg', 'ylatmin', 'ylatsec', 'xlongdeg', 'xlongmin', 'xlongsec', 'Elevation (ft)', 'Obsticle'))
@@ -84,8 +84,8 @@ StateObs2['xlong']=(StateObs2['xlongdeg']+StateObs2['xlongmin']/60+StateObs2['xl
 
 #Bee's
 #get rid of the deg/min/sec columns and send it to a csv file
-StateObs2.drop(columns=['ylatdeg', 'ylatmin', 'ylatsec', 'xlongdeg', 'xlongmin', 'xlongsec']).to_csv(r'/Users/BenLa/.spyder-py3/State_Obsticles.csv')
-StateObs3 = pd.read_csv('/Users/BenLa/.spyder-py3/State_Obsticles.csv')
+StateObs2.drop(columns=['ylatdeg', 'ylatmin', 'ylatsec', 'xlongdeg', 'xlongmin', 'xlongsec']).to_csv(r'./State_Obsticles.csv')
+StateObs3 = pd.read_csv('./State_Obsticles.csv')
 
 class AnnotatedLMAPlot(InteractiveLMAPlot):
     # @output.capture()
