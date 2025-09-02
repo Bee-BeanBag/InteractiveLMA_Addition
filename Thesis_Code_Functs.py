@@ -120,7 +120,7 @@ def RadPlanPlot(interactive_lma, radar, variable = 'reflectivity', xsec = [-76.2
         fig = plt.figure(figsize=(15,10))
         ax = plt.subplot(projection = ccrs.PlateCarree())
         display = pyart.graph.RadarMapDisplay(radar)
-        display.plot_ppi_map(variable, sweep, vmin = -20, vmax=60, cmap='pyart_HomeyerRainbow', min_lat=radar.latitude['data'][0]-2, max_lat=radar.latitude['data'][0]+2, min_lon=radar.longitude['data'][0]-2, max_lon=radar.longitude['data'][0]+2, ax = ax)
+        display.plot_ppi_map(variable, sweep, vmin = -20, vmax=60, cmap='HomeyerRainbow', min_lat=radar.latitude['data'][0]-2, max_lat=radar.latitude['data'][0]+2, min_lon=radar.longitude['data'][0]-2, max_lon=radar.longitude['data'][0]+2, ax = ax)
         ax.add_feature(COUNTIES, facecolor='none', edgecolor='gray')
         ax.add_feature(cfeature.BORDERS)
         
@@ -252,7 +252,7 @@ def RadXSecPlot(interactive_lma, radar, xsec = [-76.26, 43.64, -75.43, 43.97, 15
         fig = plt.figure(figsize=(28,16))
         #Reflectivity
         ax1 = fig.add_subplot(321)
-        plt.contourf(new_x/1e3, desz_grid[:,0]/1e3, radar_trad.fields['reflectivity']['data'].ravel()[indext_trad].reshape(np.shape(desz_grid)),levels = np.arange(-20,72,1),cmap='pyart_HomeyerRainbow')
+        plt.contourf(new_x/1e3, desz_grid[:,0]/1e3, radar_trad.fields['reflectivity']['data'].ravel()[indext_trad].reshape(np.shape(desz_grid)),levels = np.arange(-20,72,1),cmap='HomeyerRainbow')
         plt.colorbar(label='Reflectivity (dBZ)')
         plt.scatter(new_lma_r, new_lma_alt, color='k', s=25)
         plt.xlim(0, np.max(new_x)/1e3)
@@ -392,7 +392,7 @@ def DOWPlot(interactive_lma, radar, dow, max_range = 50, max_z = 15):
         fig = plt.figure(figsize=(15,10))
         ax = plt.subplot(projection = ccrs.PlateCarree())
         display = pyart.graph.RadarMapDisplay(radar)
-        display.plot_ppi_map('reflectivity', sweep, vmin = -20, vmax=60, cmap='pyart_HomeyerRainbow', min_lat=radar.latitude['data'][0]-2, max_lat=radar.latitude['data'][0]+2, min_lon=radar.longitude['data'][0]-2, max_lon=radar.longitude['data'][0]+2, ax = ax)
+        display.plot_ppi_map('reflectivity', sweep, vmin = -20, vmax=60, cmap='HomeyerRainbow', min_lat=radar.latitude['data'][0]-2, max_lat=radar.latitude['data'][0]+2, min_lon=radar.longitude['data'][0]-2, max_lon=radar.longitude['data'][0]+2, ax = ax)
         ax.set_xlim(-76.28, -75.51)
         ax.set_ylim(43.33, 44.07)
 
@@ -445,10 +445,10 @@ def DOWPlot(interactive_lma, radar, dow, max_range = 50, max_z = 15):
         plt.axis('off')
         ax1 = fig.add_subplot(321)
         # The DOW RHI
-        #display.plot('reflectivity', vmin = -20, vmax = 62, cmap = 'pyart_HomeyerRainbow', gatefilter = gatefilter, ax = ax1)
+        #display.plot('reflectivity', vmin = -20, vmax = 62, cmap = 'HomeyerRainbow', gatefilter = gatefilter, ax = ax1)
         plt.contourf((rx**2+ry**2)**0.5/1e3,rz/1e3,
                     dow_pyart.fields['reflectivity_mask']['data'],
-                    cmap = 'pyart_HomeyerRainbow', levels = np.arange(-20,62,2),
+                    cmap = 'HomeyerRainbow', levels = np.arange(-20,62,2),
                     gatefilter = gatefilter)
         ax1.tick_params(axis='x', labelsize=16)
         ax1.tick_params(axis='y', labelsize=16)
@@ -569,7 +569,7 @@ def AvgRad(radlist):
 
         fig = plt.figure(figsize=(20, 20))
         ax = plt.subplot(projection = ccrs.PlateCarree())                                                    #left, right, bottom, top
-        ax.imshow(save,vmin = -20, vmax=60, cmap='pyart_HomeyerRainbow',extent=(grided_radar[0].origin_longitude['data'][0]-1.5, grided_radar[0].origin_longitude['data'][0]+1.5, grided_radar[0].origin_latitude['data'][0]+1.5, grided_radar[0].origin_latitude['data'][0]-1.5))
+        ax.imshow(save,vmin = -20, vmax=60, cmap='HomeyerRainbow',extent=(grided_radar[0].origin_longitude['data'][0]-1.5, grided_radar[0].origin_longitude['data'][0]+1.5, grided_radar[0].origin_latitude['data'][0]+1.5, grided_radar[0].origin_latitude['data'][0]-1.5))
         ax.invert_yaxis() 
         ax.add_feature(COUNTIES, facecolor='none', edgecolor='gray')
         ax.add_feature(cfeature.BORDERS)
@@ -664,8 +664,8 @@ def FlashExtentDensity(interactive_lma, radlist, avg, frequ):
         #plt.plot(mesh_gridx, mesh_gridy, marker='o', color='k', linestyle='none')
 
         #This is for adding radar data to the FED plot (optional)
-        #display.plot_ppi_map('reflectivity', sweep, vmin = -20, vmax=60, alpha = 0.1, cmap='pyart_HomeyerRainbow', colorbar_flag = False, title_flag = False, add_grid_lines = False, min_lat=radar_data.latitude['data'][0]-2, max_lat=radar_data.latitude['data'][0]+2, min_lon=radar_data.longitude['data'][0]-2, max_lon=radar_data.longitude['data'][0]+2, ax = ax)
-        lol = ax.imshow(avg,vmin=0, vmax=60, cmap='pyart_HomeyerRainbow', alpha = 0.5, zorder = 10, extent=(grided_radar[0].origin_longitude['data'][0]-1.5, grided_radar[0].origin_longitude['data'][0]+1.5, grided_radar[0].origin_latitude['data'][0]+1.5, grided_radar[0].origin_latitude['data'][0]-1.5))
+        #display.plot_ppi_map('reflectivity', sweep, vmin = -20, vmax=60, alpha = 0.1, cmap='HomeyerRainbow', colorbar_flag = False, title_flag = False, add_grid_lines = False, min_lat=radar_data.latitude['data'][0]-2, max_lat=radar_data.latitude['data'][0]+2, min_lon=radar_data.longitude['data'][0]-2, max_lon=radar_data.longitude['data'][0]+2, ax = ax)
+        lol = ax.imshow(avg,vmin=0, vmax=60, cmap='HomeyerRainbow', alpha = 0.5, zorder = 10, extent=(grided_radar[0].origin_longitude['data'][0]-1.5, grided_radar[0].origin_longitude['data'][0]+1.5, grided_radar[0].origin_latitude['data'][0]+1.5, grided_radar[0].origin_latitude['data'][0]-1.5))
         ok = ax.contour(frequ, vmin=0, vmax=np.max(frequ)/np.max(frequ), levels = levels, cmap='HomeyerRainbow', zorder = 15, alpha = 0.7, origin = 'upper', extent=(grided_radar[0].origin_longitude['data'][0]-1.5, grided_radar[0].origin_longitude['data'][0]+1.5, grided_radar[0].origin_latitude['data'][0]+1.5, grided_radar[0].origin_latitude['data'][0]-1.5))
         im = ax.pcolormesh(yedges, xedges, grid_points, norm = 'log', zorder = 11, cmap=load_cmap("LightBlue2DarkBlue10Steps"), vmin = 1, vmax = 1000, alpha = 1)
         #ax.set_xlim(event_center[0]-zoom, event_center[0]+zoom)
@@ -703,6 +703,7 @@ def FlashExtentDensity(interactive_lma, radlist, avg, frequ):
         #plt.imshow(grided_data, cmap = 'cool')
         plt.tight_layout()
         plt.show()
+
 
 
 
