@@ -28,6 +28,8 @@ dependencies:
       - xarray
       - arm_pyart
       - git+https://github.com/Bee-BeanBag/InteractiveLMA_Addition.git
+      - nexradaws
+
 
 
 
